@@ -5,7 +5,7 @@ from jose import jwt, JWTError
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from models import User as UserModel 
-from schemas import  UserCreate
+from schemas import  UserCreate, UserUpdate
 from passlib.context import CryptContext
 
 SECRET_KEY = "mysecretkey"
@@ -28,7 +28,7 @@ async def existing_user(db: Session, username: str, email: str):
 # create token 
 async def create_access_token(id: int, username: str):
     encode = {"sub": username, "id": id}
-    expires = datetime.now(pytz.utc) + timedelta(minutes=EXPIRE_MINUTES)
+    expires = datetime = datetime.utcnow() + timedelta(minutes=EXPIRE_MINUTES)
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -38,11 +38,9 @@ async def get_current_user(db: Session, token: str = Depends(oauth2_bearer)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         id: int = payload.get("id")
-        # expires: datetime = payload.get("exp")
-        # timestamp = expires
-        # date_time_exp = datetime.fromtimestamp(timestamp)
-        # if (expires > datetime.now()):
-        #     return None
+        expires: datetime = payload.get("exp")
+        if datetime.fromtimestamp(expires) < datetime.utcnow():
+            return None 
         if username is None or id is None:
             return None
         db_user = db.query(UserModel).filter(UserModel.id == id).first()
@@ -69,3 +67,10 @@ async def authenticate(db: Session, username: str, password: str):
     if not bcrypt_context.verify(password, db_user.hashed_password):
         return None 
     return db_user 
+
+async def update_user(db: Session, db_user: UserModel, user_update: UserUpdate):
+    db_user.email = user_update.email or db_user.email
+    db.commit()
+    db.refresh(db_user)
+    
+    

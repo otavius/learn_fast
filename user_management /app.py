@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from models import User as UserModel
-from schemas import User as UserSchemas, UserCreate
+from schemas import User as UserSchemas, UserCreate, UserUpdate
 from database import get_db, engine
 import models
 import services
@@ -41,3 +41,11 @@ async def get_current_user(token: str, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="you are not authenticated")
     return db_user
+
+@app.put("/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_user(username: str, token: str,  user: UserUpdate, db: Session = Depends(get_db)):
+    #verify token
+    db_user = await services.get_current_user(db, token)
+    if not db_user or  db_user.username != username:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to update this user")
+    db_user = await services.update_user(db, db_user, user)
